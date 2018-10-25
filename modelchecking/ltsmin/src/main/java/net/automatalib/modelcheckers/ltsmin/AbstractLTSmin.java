@@ -17,6 +17,7 @@ package net.automatalib.modelcheckers.ltsmin;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.Function;
@@ -137,13 +138,19 @@ public abstract class AbstractLTSmin<I, A, R> implements ModelChecker<I, A, Stri
     protected final File findCounterExampleFSM(A hypothesis, Collection<? extends I> inputs, String formula)
             throws ModelCheckingException {
 
-        final File etf, gcf;
+        final File etf, gcf, ltl;
         try {
             // create the ETF that will contain the LTS of the hypothesis
             etf = File.createTempFile("automaton2etf", ".etf");
 
             // create the GCF that will possibly contain the counterexample
             gcf = File.createTempFile("etf2gcf", ".gcf");
+
+            // create the LTL file that will contain the formula
+            ltl = File.createTempFile("formula", ".ltl");
+
+            // write the formula to the LTL file
+            Files.write(ltl.toPath(), formula.getBytes());
 
             // write to the ETF file
             automaton2ETF(hypothesis, inputs, etf);
@@ -158,7 +165,7 @@ public abstract class AbstractLTSmin<I, A, R> implements ModelChecker<I, A, Stri
                                                                   // add the ETF file that contains the hypothesis
                                                                   etf.getAbsolutePath(),
                                                                   // add the LTL formula
-                                                                  "--ltl=" + formula,
+                                                                  "--ltl=" + ltl.getAbsolutePath(),
                                                                   // write the trace to this file
                                                                   "--trace=" + gcf.getAbsolutePath(),
                                                                   // use only one thread (hypotheses are always small)
@@ -179,6 +186,11 @@ public abstract class AbstractLTSmin<I, A, R> implements ModelChecker<I, A, Stri
         // check if we need to delete the ETF
         if (!keepFiles && !etf.delete()) {
             throw new ModelCheckingException("Could not delete file: " + etf.getAbsolutePath());
+        }
+
+        // check if we need to delete the LTL file
+        if (!keepFiles && !ltl.delete()) {
+            throw new ModelCheckingException("Could not delete file: " + ltl.getAbsolutePath());
         }
 
         final File fsm;
